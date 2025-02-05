@@ -318,7 +318,7 @@ class ForthInterpreter:
     print()
 
   def bye_word(self):
-    print("\nGoodbye :)")
+    print("Goodbye :)")
     sys.exit()
   
   def do_word(self):
@@ -674,13 +674,42 @@ class ForthInterpreter:
         except Exception as e:
           self.panic(f"Had exception {e}")
 
+
+def usage():
+  print("usage: momforth [flags] [script]")
+  print("Available flags are:")
+  print("  -h --help      print usage")
+  print("  -v --version   show version information")
+
 if __name__ == "__main__":
   interpreter = ForthInterpreter()
 
-  # TODO help/usage info
+  args = sys.argv[1:]
+  script = None
+  show_help = False
+  show_version = False
 
-  if len(sys.argv) == 2:
-    file_path = sys.argv[1]
-    interpreter.run(file_path)
+  for arg in args:
+    if arg in ("-h", "--help"):
+      show_help = True
+    elif arg in ("-v", "--version"):
+      show_version = True
+    elif not script and arg[0] != '-': # first non-flag is script
+      script = arg
+    else:
+      print(f"momforth: unrecognized option: {arg}")
+      usage()
+      sys.exit()
+
+  if show_help:
+    usage()
+    sys.exit()
+
+  if show_version:
+    print("momforth 0.1.0-alpha (python)")
+    sys.exit()
+
+  if script:
+    interpreter.run(script)
   else:
     interpreter.run()
