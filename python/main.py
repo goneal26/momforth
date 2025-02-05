@@ -25,6 +25,8 @@ class ForthInterpreter:
       '."': self.print_string,
       '=': self.equals,
       '!': self.not_word,
+      'and': self.and_word,
+      'or': self.or_word,
       'dup': self.dup,
       'drop': self.drop,
       'swap': self.swap,
@@ -52,6 +54,7 @@ class ForthInterpreter:
       'len': self.len_word, # push length of list to stack
       'from': self.from_word, # index item into listname
       'into': self.into_word,
+      'number': self.number_word,
       
       # some aliases
       'set': self.set_word,
@@ -59,22 +62,70 @@ class ForthInterpreter:
       'mod': self.mod,
       'free': self.pop,
 
+      # these just get replaced with -1 and 0
+      'true': self.true_word,
+      'false': self.false_word,
+
       # commas can be used to improve readability, they just do nothing
       ',': self.comma,
     }
     
     self.source = ""
+    self.is_file = False # flag for if we're running a file or the repl
+    self.line = 1 # current line number
     self.position = 0 # position in source string
     self.compiling = False # compile mode flag
     self.current_word = None # name of the word being defined
     self.current_definition = [] # tokens for the word being defined
     self.user_words = {} # stores user-defined compiled words
-    
     self.variables = {} # stores user variables
     self.lists = {} # stores user-defined lists
 
+  def true_word(self):
+    self.stack.append(-1)
+
+  def false_word(self):
+    self.stack.append(0)
+
+  def number_word(self):
+    num = 0
+    
+    try:
+      num = int(input())
+    except ValueError:
+      self.panic("Invalid input (expected integer)")
+      return
+
+    self.stack.append(num)
+
+  def and_word(self):
+    if len(self.stack) < 2:
+      self.panic("Not enough elements on the stack for 'and' (at least 2)")
+      return
+
+    a = self.stack.pop()
+    b = self.stack.pop()
+
+    if (a != 0) and (b != 0):
+      self.stack.append(-1)
+    else:
+      self.stack.append(0)
+
+  def or_word(self):
+    if len(self.stack) < 2:
+      self.panic("Not enough elements on the stack for 'or' (at least 2)")
+      return
+
+    a = self.stack.pop()
+    b = self.stack.pop()
+
+    if (a != 0) or (b != 0):
+      self.stack.append(-1)
+    else:
+      self.stack.append(0)
+  
   def comma(self):
-    pass
+    pass # does nothing
   
   # works for lists or variables
   def pop(self):
@@ -85,70 +136,58 @@ class ForthInterpreter:
     elif name in self.lists:
       self.stack.append(len(self.lists.pop(name)))
     else:
-      print(f"Error: Variable/List '{name}' not found")
+      self.panic(f"Variable/List '{name}' not found")
 
   # helper function to see if a word is already defined
   def already_defined(self, name):
     return (name in self.variables) or (name in self.lists) or (name in self.user_words) or (name in self.dictionary)
-
-  # helper function for evaluating a single (simple) token
-  # i.e. not a compiler-flag set or anything like that
-  def eval_token(self, token):
-    if token in self.dictionary: # reserved word
-      self.dictionary[token]()
-    elif token in self.user_words: # compiled word
-      self.execute_user_word(token)
-    elif token.isdigit() or (token[0] == '-' and token[1:].isdigit()):
-      self.stack.append(int(token))
-    else:
-      print(f"Error: Unknown token '{token}' in definition of {word_name}")
   
   def var_word(self):
     name = self.get_next()
     
     if name in self.dictionary:
-      print(f"Error: '{name}' is a reserved word")
+      self.panic(f"'{name}' is a reserved word")
       return
 
     if self.already_defined(name):
-      print(f"Error: variable '{name}' already defined")
+      self.panic(f"Variable '{name}' already defined")
       return
     
     self.variables[name] = 0 # 0-initialized
 
   def list_word(self):
     if not self.stack:
-      print("Error: Stack is empty")
+      self.panic("Stack is empty")
       return
 
     size = self.stack.pop()
 
     if size <= 0:
-      print(f"Error: Invalid list length {size}")
+      self.panic(f"Invalid list length {size}")
       return
 
     name = self.get_next()
 
     if self.already_defined(name):
-      print(f"Error: '{name}' is already defined")
+      self.panic(f"'{name}' is already defined")
       return
     else:
       self.lists[name] = [0] * size
 
   def from_word(self):
     if not self.stack:
-      print("Error: Stack is empty")
+      self.panic("Stack is empty")
       return
 
     index = self.stack.pop() - 1 # REMEMBER, 1-indexed!!!
     name = self.get_next()
     
     if name not in self.lists:
-      print(f"Error: List '{name}' not found")
+      self.panic(f"List '{name}' not found")
       return
 
     if index < 0 or index > (len(self.lists[name]) - 1):
-      print(f"Error: Index {index + 1} out of bounds for list '{name}' (length {len(self.lists[name])})")
+      self.panic(f"Index {index + 1} out of bounds for '{name}' (len {len(self.lists[name])})")
       return
 
     self.stack.append( (self.lists[name])[index] )
@@ -157,19 +196,19 @@ class ForthInterpreter:
   # (n1 n2 -- )
   def into_word(self):
     if len(self.stack) < 2:
-      print("Error: Not enough elements on the stack for 'put' (at least 2)")
+      self.panic("Not enough elements on the stack for 'put' (at least 2)")
       return
 
     new_item = self.stack.pop()
 
     name = self.get_next()
     if name not in self.lists:
-      print(f"Error: List '{name}' not found")
+      self.panic(f"List '{name}' not found")
       return
 
     index = self.stack.pop() - 1 # REMEMBER, 1-indexed!!!
     if index < 0 or index > (len(self.lists[name]) - 1):
-      print(f"Error: Index {index + 1} out of bounds for list '{name}' (length {len(self.lists[name])})")
+      self.panic(f"Index {index + 1} out of bounds for '{name}' (len {len(self.lists[name])})")
       return
 
     (self.lists[name])[index] = new_item
@@ -178,7 +217,7 @@ class ForthInterpreter:
     name = self.get_next()
 
     if name not in self.lists:
-      print(f"Error: List '{name}' not found")
+      self.panic(f"List '{name}' not found")
       return
 
     self.stack.append(len(self.lists[name]))
@@ -189,18 +228,18 @@ class ForthInterpreter:
     if name in self.variables:
       self.stack.append(self.variables[name])
     else:
-      print(f"Error: '{name}' not found")
+      self.panic(f"'{name}' not found")
 
   def set_word(self):
     if not self.stack:
-      print("Error: Stack is empty")
+      self.panic("Stack is empty")
       return
 
     val = self.stack.pop()
     name = self.get_next()
 
     if name not in self.variables:
-      print(f"Error: '{name}' not found")
+      self.panic(f"'{name}' not found")
     else:
       self.variables[name] = val
 
@@ -211,12 +250,13 @@ class ForthInterpreter:
       self.position += 1
 
       if char == '"':
-        print("".join(output), end="")
+        msg = "".join(output)
+        print(msg[1:], end="")
         return
 
       output.append(char)
 
-    print("Error: Unterminated '.\"'")
+    self.panic("Unterminated '.\"'")
 
   def empty(self):
     if not self.stack:
@@ -226,7 +266,7 @@ class ForthInterpreter:
   
   def random(self):
     if not self.stack:
-      print("Error: Stack is empty")
+      self.panic("Stack is empty")
       return
 
     bound = self.stack.pop()
@@ -236,14 +276,14 @@ class ForthInterpreter:
 
   def emit(self):
     if not self.stack:
-      print("Error: Stack is empty")
+      self.panic("Stack is empty")
       return
 
     print(chr(self.stack.pop()), end="")
   
   def over(self):
     if len(self.stack) < 2:
-      print("Error: Not enough elements on the stack for 'over' (at least 2)")
+      self.panic("Not enough elements on the stack for 'over' (at least 2)")
       return
 
     second = self.stack[-2]
@@ -251,7 +291,7 @@ class ForthInterpreter:
 
   def rot(self):
     if len(self.stack) < 3:
-      print("Error: Not enough elements on the stack for 'rot' (at least 3)")
+      self.panic("Not enough elements on the stack for 'rot' (at least 3)")
       return
 
     third = self.stack.pop()
@@ -264,7 +304,7 @@ class ForthInterpreter:
   
   def swap(self):
     if len(self.stack) < 2:
-      print("Error: Not enough elements on the stack for 'swap' (at least 2)")
+      self.panic("Not enough elements on the stack for 'swap' (at least 2)")
       return
 
     a = self.stack.pop()
@@ -278,21 +318,21 @@ class ForthInterpreter:
     print()
 
   def bye_word(self):
-    print("Goodbye :)")
+    print("\nGoodbye :)")
     sys.exit()
   
   def do_word(self):
     if len(self.stack) < 2:
-      print("Error: Not enough elements on the stack for 'do' (at least 2)")
+      self.panic("Not enough elements on the stack for 'do' (at least 2)")
       return
 
-    index = self.stack.pop()
     limit = self.stack.pop()
+    index = self.stack.pop()
     self.loop_stack.append((index, limit, self.position))
 
   def loop_word(self):
     if not self.loop_stack:
-      print("Error: No loop in progress")
+      self.panic("No loop in progress")
       return
 
     index, limit, start_pos = self.loop_stack[-1]
@@ -307,11 +347,11 @@ class ForthInterpreter:
   # ends a loop by incrementing with a stack value rather than by 1
   def plus_loop_word(self):
     if not self.loop_stack:
-      print("Error: No loop in progress")
+      self.panic("No loop in progress")
       return
 
     if not self.stack:
-      print("Error: Stack is empty for '+loop'")
+      self.panic("Stack is empty for '+loop'")
       return
 
     increment = self.stack.pop()
@@ -326,7 +366,7 @@ class ForthInterpreter:
 
   def i_word(self):
     if not self.loop_stack:
-      print("Error: No loop in progress")
+      self.panic("No loop in progress")
       return
 
     index, _, _ = self.loop_stack[-1]
@@ -334,18 +374,18 @@ class ForthInterpreter:
 
   def start_compile_mode(self):
     if self.compiling:
-      print("Error: Already in compile mode")
+      self.panic("Already in compile mode")
       return
 
     # get name of new word
     word_name = self.get_next()
     if not word_name:
-      print("Error: Expected word name after ':'")
+      self.panic("Expected word name after ':'")
       return
 
     # make sure it isn't a number
     if word_name.isdigit() or (word_name[0] == '-' and word_name[1:].isdigit()):
-      print("Error: Word name cannot be a number")
+      self.panic("Word name cannot start with a number")
       return
 
     self.compiling = True
@@ -354,42 +394,52 @@ class ForthInterpreter:
 
   def end_compile_mode(self):
     if not self.compiling:
-      print("Error: Not in compile mode")
+      self.panic("Not in compile mode")
       return
 
-    # store as list of tokens
-    self.user_words[self.current_word] = self.current_definition.copy()
+    # stitch current_definition tokens together and store in user_words[word]
+    word_def = " ".join(self.current_definition)
+    self.user_words[self.current_word] = word_def
 
     # reset compilation state
     self.compiling = False
     self.current_word = None
     self.current_definition = []
 
-  
-  def execute_user_word(self, word_name):
-    if word_name not in self.user_words:
-      print(f"Error: Word '{word_name}' not found")
+  def execute_word(self, word):
+    if word not in self.user_words:
+      self.panic("Unknown word {word}")
       return
 
-    definition = self.user_words[word_name]
-
+    # save place
     saved_pos = self.position
-    saved_source = self.source
+    saved_src = self.source
 
-    # execute each token in definition
-    for token in definition:
+    # switch source to the word's definition
+    self.position = 0
+    self.source = self.user_words[word]
+
+    token = self.get_next() # exec definition
+    while token:
       if token in self.dictionary:
         self.dictionary[token]()
       elif token in self.user_words:
-        self.execute_user_word(token)
+        self.execute_word(token)
       elif token.isdigit() or (token[0] == '-' and token[1:].isdigit()):
         self.stack.append(int(token))
       else:
-        print(f"Error: Unknown token '{token}' in definition of {word_name}")
+        self.panic(f"Unknown word '{token}' in definition of '{word}'")
+
+      token = self.get_next()
+
+    # revert back to original source
+    self.position = saved_pos
+    self.source = saved_src
+    
   
   def if_word(self):
     if not self.stack:
-      print("Error: Stack is empty")
+      self.panic("Stack is empty")
       return
 
     condition = self.stack.pop()
@@ -402,7 +452,7 @@ class ForthInterpreter:
       while True:
         token = self.get_next()
         if not token:
-          print("Error: 'if' without matching 'then'")
+          self.panic("'if' without matching 'then'")
           self.position = saved_pos
           return
 
@@ -421,7 +471,7 @@ class ForthInterpreter:
     while True:
       token = self.get_next()
       if not token:
-        print("Error: 'else' without matching 'then'")
+        self.panic("'else' without matching 'then'")
         return
 
       if token == 'if':
@@ -446,7 +496,7 @@ class ForthInterpreter:
 
   def not_word(self):
     if not self.stack:
-      print("Error: Stack is empty")
+      self.panic("Stack is empty")
       return
 
     val = self.stack.pop()
@@ -461,7 +511,7 @@ class ForthInterpreter:
       b = self.stack.pop()
       self.stack.append(b % a)
     else:
-      print("Error: Not enough elements on the stack")
+      self.panic("Not enough elements on the stack")
 
   def add(self):
     if len(self.stack) >= 2:
@@ -469,7 +519,7 @@ class ForthInterpreter:
       b = self.stack.pop()
       self.stack.append(a + b)
     else:
-      print("Error: Not enough elements on the stack")
+      self.panic("Not enough elements on the stack")
 
   def subtract(self):
     if len(self.stack) >= 2:
@@ -477,7 +527,7 @@ class ForthInterpreter:
       b = self.stack.pop()
       self.stack.append(b - a)
     else:
-      print("Error: Not enough elements on the stack")
+      self.panic("Not enough elements on the stack")
 
   def multiply(self):
     if len(self.stack) >= 2:
@@ -485,7 +535,7 @@ class ForthInterpreter:
       b = self.stack.pop()
       self.stack.append(a * b)
     else:
-      print("Error: Not enough elements on the stack")
+      self.panic("Not enough elements on the stack")
 
   def divide(self):
     if len(self.stack) >= 2:
@@ -493,34 +543,45 @@ class ForthInterpreter:
       b = self.stack.pop()
       self.stack.append(b // a)
     else:
-      print("Error: Not enough elements on the stack")
+      self.panic("Not enough elements on the stack")
 
   def pop_and_print(self):
     if self.stack:
       top = self.stack.pop()
-      print(top, end=" ")
+      print(top, end="")
     else:
-      print("Error: Stack is empty")
+      self.panic("Stack is empty")
 
   def dup(self):
     if self.stack:
       self.stack.append(self.stack[-1])
     else:
-      print("Error: Stack is empty")
+      self.panic("Stack is empty")
 
   def drop(self):
     if self.stack:
       self.stack.pop()
     else:
-      print("Error: Stack is empty")
+      self.panic("Stack is empty")
+
+  def panic(self, msg):
+    if self.is_file: # error messages when running a file have line numbers
+      print(f"Error on line {self.line}: {msg}")
+      sys.exit()
+    else:
+      print(f"Error: {msg}")
 
   def skip_comment(self):
     self.position += 1 # move past (
 
     while self.position < len(self.source):
+      if self.source[self.position] == '\n':
+        self.line += 1
+    
       if self.source[self.position] == ')':
         self.position += 1
         return True
+        
       self.position += 1
 
     return False # reached end of source without closing )
@@ -529,8 +590,10 @@ class ForthInterpreter:
   def get_next(self):
     while self.position < len(self.source):
       
-      # skip whitespace
-      while self.source[self.position].isspace():
+      # skip whitespace and count newlines
+      while self.position < len(self.source) and self.source[self.position].isspace():
+        if self.source[self.position] == '\n':
+          self.line += 1
         self.position += 1
       
       # Check if we've reached the end
@@ -540,7 +603,7 @@ class ForthInterpreter:
       # check for comments
       if self.source[self.position] == '(':
         if not self.skip_comment():
-          print("Warning: Unterminated comment")
+          self.panic("Unterminated comment")
         continue
       
       # Find the end of the current token
@@ -567,11 +630,11 @@ class ForthInterpreter:
         if token in self.dictionary:
           self.dictionary[token]()
         elif token in self.user_words:
-          self.execute_user_word(token)
+          self.execute_word(token)
         elif token.isdigit() or (token[0] == '-' and token[1:].isdigit()):
           self.stack.append(int(token))
         else:
-          print(f"Error: Unknown word '{token}'")
+          self.panic(f"Unknown word '{token}'")
 
       token = self.get_next()
 
@@ -587,8 +650,10 @@ class ForthInterpreter:
   
   def run(self, file_path=None):
     if file_path:
+      self.is_file = True
       self.load_file(file_path)
     else:
+      self.is_file = False
       print("Welcome to the momforth REPL. Type 'bye' to exit.")
       while True:
         try:
@@ -607,7 +672,7 @@ class ForthInterpreter:
           print("\nProgram terminated by user.")
           sys.exit()
         except Exception as e:
-          print(f"Error: {e}")
+          self.panic(f"Had exception {e}")
 
 if __name__ == "__main__":
   interpreter = ForthInterpreter()
