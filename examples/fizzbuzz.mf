@@ -1,0 +1,27 @@
+( Here is a fizzbuzz implementation )
+
+: fizz?
+  3 mod 0 = dup if ." Fizz" then 
+;
+
+: buzz?
+  5 mod 0 = dup if ." Buzz" then 
+;
+
+: fizz-buzz? 
+  dup fizz? swap buzz? or not 
+;
+
+: prompt
+  ." Enter a number: " number
+  ." Fizzbuzz from 1 to " dup . ." :"
+  1 +
+;
+
+: run-fizz-buzz 
+  1 prompt do cr i fizz-buzz? if i . then loop 
+;
+
+run-fizz-buzz
+
+bye ( that should be it! )
