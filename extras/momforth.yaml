@@ -1,0 +1,48 @@
+filetype: forth
+
+detect:
+  filename: "\\.(mf|momforth)$"
+
+rules:
+  - identifier: "\\b[A-Za-z_0-9-]*\\b"
+
+    # these are for control flow
+  - statement: "\\b(if|else|then|do|loop|bye|\\+loop)\\b"
+
+    # these are for acting on variables and/or lists
+  - statement: "\\b(from|into|len|pop|free|get|set|->)\\b"
+
+    # these are built-in stack operations
+  - statement: "\\b(dup|drop|swap|over|rot)\\b"
+
+    # this defines a word or constant (compiled)
+  - statement: "(^:|;$)"
+
+    # unique identifier used in loops
+  - identifier: "\\b(i)\\b"
+
+    # these are for the built-in math operators
+  - symbol.operator: "[-+*/%=!]|\\b(not|mod|and|or)\\b"
+
+    # these declare vars/lists
+  - type: "\\b((let|list))\\b"
+  
+    # these are some fairly nonstandard keywords for a FORTH dialect
+  - special: "\\b(empty|rand)\\b"
+
+    # these are for I/O
+  - special: "\\B([?.]|cr|emit|number)\\B"
+
+  - constant.number: "\\b[0-9]+\\b"
+
+  - constant.bool: "\\b(true|false)\\b"
+
+  - constant.string:
+      start: "(\\s|\\b|^)\\.\"\\s"
+      end: "\""
+
+  - comment:
+      start: "\\("
+      end: "\\)"
+      rules:
+        - todo: "(TODO|NOTE|XXX|FIXME):?"
