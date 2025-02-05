@@ -1,6 +1,6 @@
 # momforth
 
-A FORTH dialect that coddles you.
+A cozy FORTH implementation.
 
 Inspired by [Easy Forth](https://github.com/skilldrick/easyforth/tree/gh-pages), 
 Tsoding's [Porth](https://gitlab.com/tsoding/porth) livestreams, and [Tal](https://wiki.xxiivv.com/site/uxntal.html).
