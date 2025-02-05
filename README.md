@@ -7,6 +7,10 @@ Tsoding's [Porth](https://gitlab.com/tsoding/porth) livestreams, and [Tal](https
 
 Initial proof-of-concept implementation written in Python, with more coming soon.
 
+## Usage
+
+Run `momforth --help` for usage information. Language specification coming soon!
+
 ## Build and Run
 
 Clone the repository with `git clone https://github.com/goneal26/momforth.git`
