@@ -25,8 +25,8 @@ install pyinstaller
 find the executable in the `dist` directory.
 
 > [!NOTE]
-> After installing the requirements (step 4), you can simply run the program with
-> `python python/main.py` from the repository directory if you wish.
+> After installing the requirements (step 4), you can simply run the program 
+> with `python python/main.py` from the repository directory if you wish.
 
 ## Project Structure
 
