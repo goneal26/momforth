@@ -1,5 +1,7 @@
 import sys
+import time
 import random
+import readchar
 
 def custom_random(n):
   if n > 0:
@@ -12,7 +14,8 @@ def custom_random(n):
 class ForthInterpreter:
   def __init__(self):
     self.stack = []
-    self.loop_stack = [] # stack for loop indices and limits
+    self.loop_stack = [] # stack for do loops
+    self.begin_stack = [] # stack for begin loops
     
     # builtin words
     self.dictionary = {
@@ -24,6 +27,8 @@ class ForthInterpreter:
       '.': self.pop_and_print,
       '."': self.print_string,
       '=': self.equals,
+      '<': self.less_than,
+      '>': self.greater_than,
       '!': self.not_word,
       'and': self.and_word,
       'or': self.or_word,
@@ -55,12 +60,17 @@ class ForthInterpreter:
       'from': self.from_word, # index item into listname
       'into': self.into_word,
       'number': self.number_word,
+      'key': self.get_key,
+      'begin': self.begin_word,
+      'until': self.until_word,
+      'wait': self.wait_word,
       
       # some aliases
       'set': self.set_word,
       'not': self.not_word,
       'mod': self.mod,
       'free': self.pop,
+      'sleep': self.wait_word,
 
       # these just get replaced with -1 and 0
       'true': self.true_word,
@@ -79,14 +89,84 @@ class ForthInterpreter:
     self.current_definition = [] # tokens for the word being defined
     self.user_words = {} # stores user-defined compiled words
     self.variables = {} # stores user variables
-    self.lists = {} # stores user-defined lists
+    self.lists = {} # stores user-defined lists  
 
+  def wait_word(self):
+    if not self.stack:
+      self.panic("Not enough elements on stack for 'wait'")
+      return
+
+    ms = self.stack.pop() / 1000
+    time.sleep(ms)
+
+  def less_than(self):
+    if len(self.stack) < 2:
+      self.panic("Not enough elements on stack for '<'")
+      return
+    
+    a = self.stack.pop()
+    b = self.stack.pop()
+
+    # 4 5 < should be "4 < 5"
+    
+    if b < a:
+      self.stack.append(-1)
+    else:
+      self.stack.append(0)
+    
+  def greater_than(self):
+    if len(self.stack) < 2:
+      self.panic("Not enough elements on stack for '<'")
+      return
+    
+    a = self.stack.pop()
+    b = self.stack.pop()
+
+    # 4 5 > should be "4 > 5"
+    
+    if b > a:
+      self.stack.append(-1)
+    else:
+      self.stack.append(0)
+  
+  def begin_word(self):
+    self.begin_stack.append(self.position) # just pop the loop start to the stack
+
+  def until_word(self):
+    if not self.begin_stack:
+      self.panic("No loop in progress")
+      return
+
+    if not self.stack:
+      self.panic("Stack is empty")
+      return
+
+    cond = self.stack.pop()
+    start_pos = self.begin_stack[-1]
+
+    if cond != 0: # pop condition, if non-zero, loop
+      self.position = start_pos
+    else:
+      self.begin_stack.pop()
+  
+  def get_key(self):
+    key = readchar.readkey() # TODO make this work a bit more async-like?
+    # since it's kinda async it outputs the keycode at inconsistent times,
+    # and it's blocking which isn't great
+    try:
+      key = ord(key)
+    except:
+      self.panic("Invalid keycode")
+      return
+    
+    self.stack.append(key)
+  
   def true_word(self):
     self.stack.append(-1)
 
   def false_word(self):
     self.stack.append(0)
-
+  
   def number_word(self):
     num = 0
     
@@ -95,7 +175,7 @@ class ForthInterpreter:
     except ValueError:
       self.panic("Invalid input (expected integer)")
       return
-
+  
     self.stack.append(num)
 
   def and_word(self):
