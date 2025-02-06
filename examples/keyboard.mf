@@ -1,0 +1,2 @@
+( This code prints the key pressed by the user until they press "q" )
+begin key dup emit cr 113 = not until cr bye
