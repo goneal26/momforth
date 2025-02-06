@@ -1,0 +1,34 @@
+( This is a simple guessing game! )
+
+." Let's play a guessing game!" cr
+." I'm thinking of a number between 1 and 100..." cr
+
+( generate random solution )
+let solution
+100 rand 1 + -> solution
+
+let guess ( stores user's guess )
+let attempts ( stores amount of attempts )
+
+let gameover ( stores bool to check if the game is over )
+false -> gameover
+
+begin
+  ." Make a guess: "
+  number -> guess
+  
+  get attempts 1 + -> attempts ( increment attempts )
+  
+  get guess get solution < if
+    ." Too low!" cr
+  else ( since there's no "elif", we just nest the else-if )
+    get guess get solution > if
+      ." Too high!" cr
+    else ( otherwise, is correct guess )
+      ." You got it! You guessed the number in " get attempts . ."  tries." cr
+      true -> gameover
+    then
+  then
+get gameover not until ( repeat while the game is NOT over )
+
+bye ( end program )
