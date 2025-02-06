@@ -10,7 +10,7 @@ rules:
   - statement: "\\b(if|else|then|do|loop|bye|\\+loop)\\b"
 
     # these are for acting on variables and/or lists
-  - statement: "\\b(from|into|len|pop|free|get|set|->)\\b"
+  - statement: "\\b(from|into|len|pop|free|get|set)\\b|\\-\\>"
 
     # these are built-in stack operations
   - statement: "\\b(dup|drop|swap|over|rot)\\b"
