@@ -9,7 +9,9 @@ Initial proof-of-concept implementation written in Python, with more coming soon
 
 ## Usage
 
-Run `momforth --help` for usage information. Language specification coming soon!
+Run `momforth --help` for usage information.
+
+If you want to know more about how the language works, read the [documentation](DOC.md).
 
 ## Build and Run
 
@@ -25,8 +27,12 @@ and navigate to the repository folder on your machine.
 3. Activate the environment (on Linux, it's `source env/bin/activate`)
 4. Install requirements with `pip install -r requirements.txt`, this should 
 install pyinstaller
-5. Build as an executable with `pyinstaller -n momforth -F main.py`, you can then
-find the executable in the `dist` directory.
+5. Build as an executable with the following command, you can then
+find the executable in the `dist` directory:
+
+```
+pyinstaller --copy-metadata readchar -n momforth -F main.py
+```
 
 > [!NOTE]
 > After installing the requirements (step 4), you can simply run the program 
