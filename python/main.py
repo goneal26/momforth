@@ -30,6 +30,7 @@ class ForthInterpreter:
       '<': self.less_than,
       '>': self.greater_than,
       '!': self.not_word,
+      'neg': self.neg_word,
       'and': self.and_word,
       'or': self.or_word,
       'dup': self.dup,
@@ -90,6 +91,14 @@ class ForthInterpreter:
     self.user_words = {} # stores user-defined compiled words
     self.variables = {} # stores user variables
     self.lists = {} # stores user-defined lists  
+
+  def neg_word(self):
+    if not self.stack:
+      self.panic("Not enough elements on stack for 'neg'")
+      return
+
+    a = self.stack.pop()
+    self.stack.append(-a)
 
   def wait_word(self):
     if not self.stack:
@@ -406,8 +415,8 @@ class ForthInterpreter:
       self.panic("Not enough elements on the stack for 'do' (at least 2)")
       return
 
-    limit = self.stack.pop()
     index = self.stack.pop()
+    limit = self.stack.pop()
     self.loop_stack.append((index, limit, self.position))
 
   def loop_word(self):
