@@ -45,6 +45,25 @@ the stack.
 
 ## Compilation Mode
 
+To enter compilation mode, use the `:` keyword followed by a "name". Write
+whatever code you want after the "name" and then end with a `;` keyword- this
+defines the keyword with that name as those instructions.
+
+For example, we can define a `dup-three` keyword that copies and pushes the top 
+of the stack three times like so:
+
+```
+: dup-three dup dup dup ;
+```
+
+When the momforth interpreter runs, every time it encounters `dup-three` after
+this definition it will replace that keyword with the `dup dup dup` instructions
+before continuing execution.
+
+**A note on keywords:** user-defined keywords simply must be space-separated,
+and must start with a letter or an underscore. Using hyphens or underscores in
+variable names is completely fine.
+
 ## Math
 
 ### `+ ( a b -- n )`
